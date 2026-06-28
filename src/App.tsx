@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/useAuth'; 
+import { useAuth } from './context/useAuth';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard'; // <- Importamos el archivo real que creaste
 
 // Componente para proteger rutas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -12,18 +13,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Placeholder para la página que haremos después
-function Dashboard() {
-  const { profile, signOut } = useAuth();
-  return (
-    <div className="p-10">
-      <h1 className="text-3xl font-bold">Panel del Creador</h1>
-      <p>Bienvenido, {profile?.nombre}! Tu rol es: {profile?.role}</p>
-      <button onClick={signOut} className="mt-4 text-red-500 underline">Cerrar Sesión</button>
-    </div>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
@@ -31,7 +20,7 @@ function App() {
         {/* Ruta pública */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas protegidas (requieren estar logueado) */}
+        {/* Ruta protegida (requiere estar logueado) */}
         <Route 
           path="/dashboard" 
           element={
@@ -41,7 +30,7 @@ function App() {
           } 
         />
 
-        {/* Ruta por defecto */}
+        {/* Si el usuario escribe una ruta que no existe, lo mandamos al login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
