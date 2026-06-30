@@ -66,7 +66,7 @@ export default function SorteoCard({ sorteo }: SorteoCardProps) {
         <div className="mt-4 pt-4 border-t">
           <Button
             variant="ghost"
-            className="!w-auto !text-indigo-600 !font-semibold !px-0 hover:!bg-transparent !underline"
+            className="w-auto! text-indigo-600! font-semibold! px-0! hover:bg-transparent! underline!"
             onClick={() => navigate(`/sorteo/${sorteo.id}`)}
           >
             Ver puestos / Compartir enlace
@@ -75,7 +75,7 @@ export default function SorteoCard({ sorteo }: SorteoCardProps) {
           {/* --- BOTÓN GESTIONAR --- */}
           <Button
             variant="primary"
-            className="!w-auto !mt-2"
+            className="w-auto! mt-2!"
             onClick={(e) => {
               e.stopPropagation(); // Para que no dispare otros clicks si los hay
               navigate(`/gestionar-sorteo/${sorteo.id}`);

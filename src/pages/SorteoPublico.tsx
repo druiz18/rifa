@@ -142,7 +142,7 @@ export default function SorteoPublico() {
       <div className="max-w-lg mx-auto mt-20 p-8 bg-white rounded-lg shadow text-center">
         <p className="text-red-500 font-semibold mb-4">{error}</p>
         <Link to="/">
-          <Button variant="ghost" className="!w-auto !mx-auto">
+          <Button variant="ghost" className="w-auto! mx-auto!">
             Volver al inicio
           </Button>
         </Link>
@@ -291,7 +291,7 @@ export default function SorteoPublico() {
               type="button"
               variant="ghost"
               onClick={handleCloseModal}
-              className="!w-auto"
+              className="w-auto!"
             >
               Cancelar
             </Button>

@@ -131,7 +131,7 @@ export default function GestionarSorteo() {
         <Button
           variant="ghost"
           onClick={() => navigate("/dashboard")}
-          className="!w-auto !text-gray-600"
+          className="w-auto! text-gray-600!"
         >
           ← Volver al Panel
         </Button>
