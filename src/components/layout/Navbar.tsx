@@ -1,14 +1,21 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import Button from '../ui/Button';
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   // Función para cerrar el menú al hacer clic en un enlace (buena UX móvil)
   const closeMenu = () => setIsMenuOpen(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    closeMenu();
+    navigate('/');
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -65,7 +72,7 @@ export default function Navbar() {
                 <Link to="/dashboard" className="text-sm text-gray-600 hover:text-indigo-600 font-medium">
                   Mi Panel
                 </Link>
-                <button onClick={signOut} className="text-sm text-red-500 hover:text-red-700 font-medium">
+                <button onClick={handleSignOut} className="text-sm text-red-500 hover:text-red-700 font-medium">
                   Cerrar Sesión
                 </button>
               </>
@@ -114,7 +121,7 @@ export default function Navbar() {
                   <Button variant="ghost" className="w-full !text-gray-700">Mi Panel</Button>
                 </Link>
                 <button 
-                  onClick={() => { signOut(); closeMenu(); }} 
+                  onClick={handleSignOut} 
                   className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-500 hover:text-red-700 hover:bg-gray-50"
                 >
                   Cerrar Sesión
