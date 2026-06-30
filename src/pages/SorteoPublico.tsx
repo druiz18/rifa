@@ -27,7 +27,7 @@ export default function SorteoPublico() {
   const [formData, setFormData] = useState({
     nombre_comprador: "",
     telefono: "",
-    metodo_pago: "",
+    metodo_pago: "efectivo",
   });
 
   useEffect(() => {

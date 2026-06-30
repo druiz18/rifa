@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import ComoFunciona from './pages/ComoFunciona';
 import Politicas from './pages/Politicas';
 import SorteoPublico from './pages/SorteoPublico';
+import GestionarSorteo from './pages/GestionarSorteo';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -38,6 +39,7 @@ function App() {
             {/* Rutas Protegidas */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/crear-sorteo" element={<ProtectedRoute><CrearSorteo /></ProtectedRoute>} />
+            <Route path="/gestionar-sorteo/:id" element={<ProtectedRoute><GestionarSorteo /></ProtectedRoute>} />
 
             {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />
