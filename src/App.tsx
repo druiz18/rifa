@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard'; // <- Importamos el archivo real que creaste
+import CrearSorteo from './pages/CrearSorteo';
 
 // Componente para proteger rutas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,15 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           } 
+        />
+
+        <Route
+          path='/crear-sorteo'
+          element={
+            <ProtectedRoute>
+              <CrearSorteo/>
+            </ProtectedRoute>
+          }
         />
 
         {/* Si el usuario escribe una ruta que no existe, lo mandamos al login */}

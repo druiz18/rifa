@@ -1,70 +1,86 @@
-import { useState } from 'react';
-import { useAuth } from '../context/useAuth';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Modal from '../components/ui/Modal';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
+import { supabase } from "../lib/supabase";
+import type { Database } from "../lib/database.types";
+import SorteoCard from "../components/sorteo/SorteoCard";
+import Button from "../components/ui/Button";
+
+type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 
 export default function Dashboard() {
   const { profile, signOut } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [testInput, setTestInput] = useState('');
+  const navigate = useNavigate();
+
+  const [sorteos, setSorteos] = useState<Sorteo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // useEffect se ejecuta al cargar la página
+  useEffect(() => {
+    const cargarSorteos = async () => {
+      const { data, error } = await supabase
+        .from("sorteos")
+        .select("*")
+        .order("created_at", { ascending: false }); // Los más nuevos primero
+
+      if (error) {
+        console.error("Error al cargar sorteos:", error);
+      } else {
+        setSorteos(data || []);
+      }
+      setLoading(false);
+    };
+
+    void cargarSorteos();
+  }, []);
+
+  // Mientras carga la base de datos
+  if (loading) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Cargando tus sorteos...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-10 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Panel del Creador</h1>
-      <p className="mb-4">Bienvenido, {profile?.nombre}! Tu rol es: <span className="font-bold text-indigo-600">{profile?.role}</span></p>
-      
-      <button onClick={signOut} className="mb-8 text-red-500 underline">Cerrar Sesión</button>
+    <div className="max-w-6xl mx-auto p-6">
+      {/* Cabecera del Dashboard */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Mis Sorteos</h1>
+          <p className="text-gray-500 mt-1">
+            Bienvenido de vuelta, {profile?.nombre || "Creador"}
+          </p>
+        </div>
 
-      {/* --- PRUEBA DE COMPONENTES --- */}
-      <div className="border p-6 rounded-lg space-y-4 bg-gray-50">
-        <h2 className="text-xl font-semibold">Test UI Components</h2>
-        
-        <Input 
-          id="test" 
-          label="Nombre del comprador" 
-          value={testInput}
-          onChange={(e) => setTestInput(e.target.value)}
-          placeholder="Ej: Juan Pérez"
-          error={testInput.length > 0 && testInput.length < 3 ? "Mínimo 3 caracteres" : null}
-        />
-
-        <Select 
-          id="pago" 
-          label="Método de pago" 
-          options={[
-            { value: 'efectivo', label: 'Efectivo' },
-            { value: 'transferencia', label: 'Transferencia' }
-          ]} 
-        />
-
-        <div className="flex gap-4">
-          <Button onClick={() => setIsModalOpen(true)}>
-            Abrir Modal de Compra
+        <div className="flex gap-3">
+          <Button onClick={() => navigate("/crear-sorteo")}>
+            + Crear Nuevo Sorteo
           </Button>
-          <Button variant="danger" loading={false}>
-            Botón Peligro
+          <Button variant="ghost" onClick={signOut}>
+            Cerrar Sesión
           </Button>
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Reservar Puesto #15">
-        <p className="text-gray-600 mb-4">Completa tus datos para reservar este puesto. El creador verificará tu pago.</p>
-        <div className="space-y-4">
-          <Input id="modal-nombre" label="Tu Nombre" placeholder="Pedro" />
-          <Input id="modal-tel" label="Tu Teléfono" placeholder="555-1234" />
-          <Select 
-            id="modal-pago" 
-            label="¿Cómo vas a pagar?" 
-            options={[
-              { value: 'efectivo', label: 'Efectivo' },
-              { value: 'transferencia', label: 'Transferencia' }
-            ]} 
-          />
-          <Button>Confirmar Reserva</Button>
+      {/* Lista de Sorteos */}
+      {sorteos.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed border-gray-200">
+          <p className="text-gray-400 text-lg">
+            Aún no has creado ningún sorteo.
+          </p>
+          <p className="text-gray-400 text-sm mt-2">
+            ¡Haz clic en el botón de arriba para empezar a ganar!
+          </p>
         </div>
-      </Modal>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sorteos.map((sorteo) => (
+            <SorteoCard key={sorteo.id} sorteo={sorteo} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
