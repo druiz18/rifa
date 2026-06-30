@@ -7,6 +7,7 @@ import CrearSorteo from './pages/CrearSorteo';
 import Home from './pages/Home';
 import ComoFunciona from './pages/ComoFunciona';
 import Politicas from './pages/Politicas';
+import SorteoPublico from './pages/SorteoPublico';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,6 +31,9 @@ function App() {
             <Route path="/como-funciona" element={<ComoFunciona />} />
             <Route path="/politicas" element={<Politicas />} />
             <Route path="/login" element={<Login />} />
+
+            {/* RUTA PÚBLICA DEL SORTEO */}
+          <Route path="/sorteo/:id" element={<SorteoPublico />} />
 
             {/* Rutas Protegidas */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
