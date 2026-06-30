@@ -14,7 +14,7 @@ export default function Navbar() {
   const handleSignOut = async () => {
     await signOut();
     closeMenu();
-    navigate('/');
+    navigate('/', { replace: true });
   };
 
   return (

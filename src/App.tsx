@@ -11,7 +11,7 @@ import Politicas from './pages/Politicas';
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-10 text-center">Cargando...</div>;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
