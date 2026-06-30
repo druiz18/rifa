@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+//import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { supabase } from "../lib/supabase";
 import type { Database } from "../lib/database.types";
 import SorteoCard from "../components/sorteo/SorteoCard";
-import Button from "../components/ui/Button";
+//import Button from "../components/ui/Button";
 
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 
 export default function Dashboard() {
-  const { profile, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
+  //const navigate = useNavigate();
 
   const [sorteos, setSorteos] = useState<Sorteo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,15 +52,6 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">
             Bienvenido de vuelta, {profile?.nombre || "Creador"}
           </p>
-        </div>
-
-        <div className="flex gap-3">
-          <Button onClick={() => navigate("/crear-sorteo")}>
-            + Crear Nuevo Sorteo
-          </Button>
-          <Button variant="ghost" onClick={signOut}>
-            Cerrar Sesión
-          </Button>
         </div>
       </div>
 

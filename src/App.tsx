@@ -1,48 +1,45 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
+import Navbar from './components/layout/Navbar';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard'; // <- Importamos el archivo real que creaste
+import Dashboard from './pages/Dashboard';
 import CrearSorteo from './pages/CrearSorteo';
+import Home from './pages/Home';
+import ComoFunciona from './pages/ComoFunciona';
+import Politicas from './pages/Politicas';
 
-// Componente para proteger rutas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
-  if (loading) return <div className="p-10 text-center">Cargando perfil...</div>;
+  if (loading) return <div className="p-10 text-center">Cargando...</div>;
   if (!user) return <Navigate to="/login" />;
-
   return <>{children}</>;
 }
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Ruta pública */}
-        <Route path="/login" element={<Login />} />
+      {/* El Layout Global envuelve TODA la app */}
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        
+        {/* El contenido cambia según la ruta */}
+        <main className="flex-1">
+          <Routes>
+            {/* Rutas Públicas */}
+            <Route path="/" element={<Home />} />
+            <Route path="/como-funciona" element={<ComoFunciona />} />
+            <Route path="/politicas" element={<Politicas />} />
+            <Route path="/login" element={<Login />} />
 
-        {/* Ruta protegida (requiere estar logueado) */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
+            {/* Rutas Protegidas */}
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/crear-sorteo" element={<ProtectedRoute><CrearSorteo /></ProtectedRoute>} />
 
-        <Route
-          path='/crear-sorteo'
-          element={
-            <ProtectedRoute>
-              <CrearSorteo/>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Si el usuario escribe una ruta que no existe, lo mandamos al login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+            {/* 404 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   );
 }
