@@ -18,9 +18,9 @@ export default function Navbar() {
           {/* Logo / Inicio (Siempre visible) */}
           <Link to={user ? "/" : "/"} className="flex items-center gap-2" onClick={closeMenu}>
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-              S
+              R
             </div>
-            <span className="font-bold text-gray-900 text-lg">SorteosApp</span>
+            <span className="font-bold text-gray-900 text-lg">Rifa-co</span>
           </Link>
 
           {/* BOTÓN HAMBURGUESA (Solo visible en móvil) */}
