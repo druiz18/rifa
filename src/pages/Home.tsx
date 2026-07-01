@@ -18,10 +18,10 @@ export default function Home() {
         </p>
         <div className="mt-10 flex justify-center gap-4">
           {user?<Link to={"/crear-sorteo"}>
-            <Button className="!w-auto !px-8 !py-3 text-base">+ Crear sorteo</Button>
+            <Button className="w-auto! px-8! py-3! text-base">+ Crear sorteo</Button>
           </Link>:
           <Link to={"/login"}>
-            <Button className="!w-auto !px-8 !py-3 text-base">Crear mi primer sorteo</Button>
+            <Button className="w-auto! px-8! py-3! text-base">Crear mi primer sorteo</Button>
           </Link>
           }
           
