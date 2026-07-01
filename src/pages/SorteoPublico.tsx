@@ -68,7 +68,7 @@ export default function SorteoPublico() {
     if (puesto.estado !== "disponible") return;
     setSelectedPuesto(puesto);
     setErrorModal(null);
-    setFormData({ nombre_comprador: "", telefono: "", metodo_pago: "" }); // Limpiar formulario
+    setFormData({ nombre_comprador: "", telefono: "", metodo_pago: "efectivo" }); // Limpiar formulario
     setIsModalOpen(true);
   };
 
@@ -155,8 +155,8 @@ export default function SorteoPublico() {
       {/* Cabecera del Sorteo */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
         <div className="md:flex">
-          <div className="md:w-1/3 h-64 md:h-auto bg-gray-200">
-            <img
+          <div className="h-48 w-full bg-gray-200 overflow-hidden">
+            <img 
               src={sorteo.imagen ?? undefined}
               alt={sorteo.titulo}
               className="w-full h-full object-cover"
