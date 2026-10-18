@@ -80,8 +80,8 @@ export default function SorteoCard({ sorteo, onDelete }: SorteoCardProps) {
         </p>
 
         <div className="mt-4 pt-4 border-t flex flex-col gap-2">
-          <Button variant="ghost" className="w-auto! text-indigo-600! font-semibold! px-0! hover:bg-transparent! underline!" onClick={() => navigate(`/sorteo/${sorteo.id}`)}>
-            Ver puestos / Compartir enlace
+          <Button variant="ghost" className="w-auto! text-indigo-600! font-semibold! px-0!" onClick={() => navigate(`/sorteo/${sorteo.id}`)}>
+            Ver puestos 
           </Button>
           <Button variant="primary" className="w-auto!" onClick={(e) => { e.stopPropagation(); navigate(`/gestionar-sorteo/${sorteo.id}`); }}>
             Gestionar Ventas

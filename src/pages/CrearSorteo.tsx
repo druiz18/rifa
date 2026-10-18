@@ -37,6 +37,10 @@ export default function CrearSorteo() {
     }
   };
 
+  const handleCancel = () => {
+    navigate("/dashboard");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !imagenFile) {
@@ -224,9 +228,14 @@ export default function CrearSorteo() {
           />
         </div>
 
-        <Button type="submit" loading={loading} className="mt-6">
-          {loading ? "Creando Sorteo..." : "Publicar Sorteo"}
-        </Button>
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="danger" onClick={handleCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={loading}>
+            {loading ? "Creando Sorteo..." : "Publicar Sorteo"}
+          </Button>
+        </div>
       </form>
     </div>
   );

@@ -12,7 +12,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantStyles: Record<ButtonVariant, string> = {
   primary: 'bg-green-600 hover:bg-indigo-700 text-white focus:ring-indigo-500',
   danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
-  ghost: 'bg-transparent hover:bg-gray-100 text-gray-700 focus:ring-gray-500',
+  ghost: 'bg-transparent hover:bg-gray-300 text-gray-700 focus:ring-gray-500',
 };
 
 export default function Button({ 
@@ -25,7 +25,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${className}`}
+      className={`flex justify-center py-2.5 px-4 border hover:cursor-pointer border-transparent rounded-md shadow-sm text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${variantStyles[variant]} ${className}`}
       disabled={disabled || loading}
       {...props}
     >

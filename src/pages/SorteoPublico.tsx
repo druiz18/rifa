@@ -5,7 +5,8 @@ import type { Database } from "../lib/database.types";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
-import Modal from "../components/ui/Modal"; // <- Importamos el Modal
+import Modal from "../components/ui/Modal";
+import Toast from "../components/ui/Toast";
 
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 type Puesto = Database["public"]["Tables"]["puestos"]["Row"];
@@ -17,6 +18,8 @@ export default function SorteoPublico() {
   const [puestos, setPuestos] = useState<Puesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   // --- NUEVOS ESTADOS PARA EL MODAL ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,13 +71,29 @@ export default function SorteoPublico() {
     if (puesto.estado !== "disponible") return;
     setSelectedPuesto(puesto);
     setErrorModal(null);
-    setFormData({ nombre_comprador: "", telefono: "", metodo_pago: "efectivo" }); // Limpiar formulario
+    setFormData({
+      nombre_comprador: "",
+      telefono: "",
+      metodo_pago: "efectivo",
+    }); // Limpiar formulario
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedPuesto(null);
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      const shareUrl = window.location.href;
+      await navigator.clipboard.writeText(shareUrl);
+      setToastMessage("Link copiado");
+      setToastOpen(true);
+    } catch {
+      setToastMessage("No se pudo copiar el enlace");
+      setToastOpen(true);
+    }
   };
 
   const handleReserva = async (e: React.FormEvent) => {
@@ -154,15 +173,18 @@ export default function SorteoPublico() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6">
       {/* Cabecera del Sorteo */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div className="md:flex">
-          <div className="h-48 w-full bg-gray-200 overflow-hidden">
-            <img 
-              src={sorteo.imagen ?? undefined}
-              alt={sorteo.titulo}
-              className="w-full h-full object-cover"
-            />
+        <div className="flex flex-col md:flex-row">
+          <div className="order-2 md:order-2 md:w-2/5">
+            <div className="h-56 w-full bg-gray-200 overflow-hidden md:h-full md:min-h-[260px]">
+              <img
+                src={sorteo.imagen ?? undefined}
+                alt={sorteo.titulo}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
-          <div className="p-6 md:w-2/3 flex flex-col justify-center">
+
+          <div className="order-1 md:order-1 md:w-3/5 p-6 flex flex-col justify-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
               {sorteo.titulo}
             </h1>
@@ -170,30 +192,74 @@ export default function SorteoPublico() {
               🎉 Premio: {sorteo.titulo_premio}
             </p>
             {sorteo.descripcion_premio && (
-              <p className="text-gray-600 text-sm mb-4">
+              <p className="text-gray-600 text-sm mb-5">
                 {sorteo.descripcion_premio}
               </p>
             )}
 
-            <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
-              <span className="font-semibold text-gray-800 text-lg">
-                {formatoMoneda} <span className="text-xs font-normal">c/u</span>
-              </span>
-              <span>•</span>
-              <span>
-                Fecha:{" "}
-                {sorteo.fecha_sorteo
-                  ? new Date(sorteo.fecha_sorteo).toLocaleDateString("es-ES", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "Fecha no disponible"}
-              </span>
+            <div className="flex flex-col gap-3 text-sm text-gray-500 md:flex-row md:items-center md:justify-between md:gap-4">
+              <div className="flex flex-wrap items-center gap-3 md:gap-4">
+                <span className="font-semibold text-gray-800 text-lg">
+                  {formatoMoneda}{" "}
+                  <span className="text-xs font-normal">c/u</span>
+                </span>
+                <span className="hidden md:inline text-gray-300">•</span>
+                <span>
+                  Fecha:{" "}
+                  {sorteo.fecha_sorteo
+                    ? new Date(sorteo.fecha_sorteo).toLocaleDateString(
+                        "es-ES",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )
+                    : "Fecha no disponible"}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                aria-label="Copiar enlace para compartir"
+                title="Copiar enlace"
+                className="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 p-2.5 text-indigo-700 transition hover:bg-indigo-100 md:px-3 md:py-2 md:w-auto"
+              > <span className="text-xs font-bold mr-2"> Compartir </span>  
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 1 0-7.07-7.07L10.1 4.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l2.83-2.83"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      <Toast
+        isOpen={toastOpen}
+        message={toastMessage}
+        onClose={() => setToastOpen(false)}
+        type={
+          toastMessage === "No se pudo copiar el enlace" ? "error" : "success"
+        }
+      />
 
       {/* Tablero de Puestos */}
       <div className="bg-white p-6 rounded-xl shadow-md">
