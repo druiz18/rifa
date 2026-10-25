@@ -4,5 +4,13 @@ import type {Database} from './database.types' // <- Aquí conectamos los tipos 
 // Creamos el cliente pasándole el tipo "Database"
 export const supabase = createClient<Database>(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      storage: window.sessionStorage, // <--- ESTA ES LA LÍNEA MÁGICA
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
 )

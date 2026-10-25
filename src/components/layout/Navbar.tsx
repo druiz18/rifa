@@ -67,7 +67,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link to="/crear-sorteo">
-                  <Button variant="primary" className="!w-auto !px-4 !py-2">+ Crear Sorteo</Button>
+                  <Button variant="primary" className="w-auto! px-4! py-2!">+ Crear Sorteo</Button>
                 </Link>
                 <Link to="/dashboard" className="text-sm text-gray-600 hover:text-indigo-600 font-medium">
                   Mi Panel

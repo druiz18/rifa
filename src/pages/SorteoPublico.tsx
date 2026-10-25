@@ -173,81 +173,82 @@ export default function SorteoPublico() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6">
       {/* Cabecera del Sorteo */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div className="flex flex-col md:flex-row">
-          <div className="order-2 md:order-2 md:w-2/5">
-            <div className="h-56 w-full bg-gray-200 overflow-hidden md:h-full md:min-h-[260px]">
+        <div className="flex flex-col md:flex-row md:items-stretch">
+          <div className="order-1 md:w-2/5">
+            <div className="h-56 w-full overflow-hidden md:h-full md:min-h-72">
               <img
                 src={sorteo.imagen ?? undefined}
                 alt={sorteo.titulo}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           </div>
 
-          <div className="order-1 md:order-1 md:w-3/5 p-6 flex flex-col justify-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          <div className="order-2 flex flex-1 flex-col justify-center gap-3 p-5 sm:p-6">
+            <h1 className="text-center text-2xl font-bold text-gray-900 sm:text-3xl md:text-left">
               {sorteo.titulo}
             </h1>
-            <p className="text-indigo-600 text-lg font-semibold mb-4">
-              🎉 Premio: {sorteo.titulo_premio}
-            </p>
-            {sorteo.descripcion_premio && (
-              <p className="text-gray-600 text-sm mb-5">
-                {sorteo.descripcion_premio}
+            <div className="text-center md:text-left">
+              <p className="text-indigo-600 text-lg font-semibold">
+                🎉 Premio: {sorteo.titulo_premio}
               </p>
-            )}
+              {sorteo.descripcion_premio && (
+                <p className="mt-1 text-gray-600 text-sm">
+                  {sorteo.descripcion_premio}
+                </p>
+              )}
+            </div>
 
-            <div className="flex flex-col gap-3 text-sm text-gray-500 md:flex-row md:items-center md:justify-between md:gap-4">
-              <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                <span className="font-semibold text-gray-800 text-lg">
+            <div className="flex flex-col items-center gap-2 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-3 md:justify-start">
+              <span className="font-semibold text-gray-800 text-base">
                   {formatoMoneda}{" "}
                   <span className="text-xs font-normal">c/u</span>
-                </span>
-                <span className="hidden md:inline text-gray-300">•</span>
-                <span>
-                  Fecha:{" "}
-                  {sorteo.fecha_sorteo
-                    ? new Date(sorteo.fecha_sorteo).toLocaleDateString(
-                        "es-ES",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        },
-                      )
-                    : "Fecha no disponible"}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                aria-label="Copiar enlace para compartir"
-                title="Copiar enlace"
-                className="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 p-2.5 text-indigo-700 transition hover:bg-indigo-100 md:px-3 md:py-2 md:w-auto"
-              > <span className="text-xs font-bold mr-2"> Compartir </span>  
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 1 0-7.07-7.07L10.1 4.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l2.83-2.83"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              </span>
+              <span className="hidden h-8 border-l border-gray-300 sm:block" />
+              <span className="text-center sm:text-left">
+                Fecha:{" "}
+                {sorteo.fecha_sorteo
+                  ? new Date(sorteo.fecha_sorteo).toLocaleDateString(
+                      "es-ES",
+                      {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )
+                  : "Fecha no disponible"}
+              </span>
             </div>
+
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              aria-label="Copiar enlace para compartir"
+              title="Copiar enlace"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-indigo-600 bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Compartir
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 1 0-7.07-7.07L10.1 4.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l2.83-2.83"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
