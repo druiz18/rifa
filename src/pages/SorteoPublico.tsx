@@ -1,81 +1,99 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import type { Database } from "../lib/database.types";
-import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
-import Modal from "../components/ui/Modal";
-import Toast from "../components/ui/Toast";
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import type { Database } from '../lib/database.types';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Modal from '../components/ui/Modal';
 
-type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
-type Puesto = Database["public"]["Tables"]["puestos"]["Row"];
+type Sorteo = Database['public']['Tables']['sorteos']['Row'];
+type Puesto = Database['public']['Tables']['puestos']['Row'];
 
 export default function SorteoPublico() {
   const { id } = useParams<{ id: string }>();
-
+  
   const [sorteo, setSorteo] = useState<Sorteo | null>(null);
   const [puestos, setPuestos] = useState<Puesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
 
-  // --- NUEVOS ESTADOS PARA EL MODAL ---
+  // Estados del modal de reserva
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPuesto, setSelectedPuesto] = useState<Puesto | null>(null);
   const [loadingReserva, setLoadingReserva] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
-
   const [formData, setFormData] = useState({
-    nombre_comprador: "",
-    telefono: "",
-    metodo_pago: "efectivo",
+    nombre_comprador: '',
+    telefono: '',
+    metodo_pago: 'efectivo'
   });
+
+  // Estado del modal del ganador
+  const [dismissedWinnerSorteoId, setDismissedWinnerSorteoId] = useState<string | null>(null);
+  const isWinnerModalOpen = sorteo?.estado === 'finalizado'
+    && dismissedWinnerSorteoId !== sorteo.id;
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchSorteoData = async () => {
-      const { data: sorteoData, error: sorteoError } = await supabase
-        .from("sorteos")
-        .select("*")
-        .eq("id", id)
-        .single();
+    let cancelled = false;
 
-      if (sorteoError) {
-        setError("Este sorteo no existe o fue eliminado.");
+    const loadSorteoData = async () => {
+      try {
+        const { data: sorteoData, error: sorteoError } = await supabase
+          .from('sorteos')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (cancelled) return;
+
+        if (sorteoError) {
+          setError("Este sorteo no existe o fue eliminado.");
+          setLoading(false);
+          return;
+        }
+
+        setSorteo(sorteoData);
+
+        const { data: puestosData, error: puestosError } = await supabase
+          .from('puestos')
+          .select('*')
+          .eq('sorteo_id', id)
+          .order('numero', { ascending: true });
+
+        if (cancelled) return;
+
+        if (puestosError) console.error(puestosError);
+        else setPuestos(puestosData || []);
+
         setLoading(false);
-        return;
+      } catch (loadError) {
+        console.error(loadError);
+        if (!cancelled) {
+          setError("No se pudo cargar el sorteo. Inténtalo de nuevo.");
+          setLoading(false);
+        }
       }
-
-      setSorteo(sorteoData);
-
-      const { data: puestosData, error: puestosError } = await supabase
-        .from("puestos")
-        .select("*")
-        .eq("sorteo_id", id)
-        .order("numero", { ascending: true });
-
-      if (puestosError) console.error(puestosError);
-      else setPuestos(puestosData || []);
-
-      setLoading(false);
     };
 
-    fetchSorteoData();
+    void loadSorteoData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  // --- LÓGICA DEL MODAL ---
+  // ============================================================
+  // 3. LÓGICA DEL MODAL DE RESERVA
+  // ============================================================
   const handleOpenModal = (puesto: Puesto) => {
-    if (puesto.estado !== "disponible") return;
+    if (puesto.estado !== 'disponible') return;
+    if (sorteo?.estado === 'finalizado') return; // Bloquea si ya terminó
     setSelectedPuesto(puesto);
     setErrorModal(null);
-    setFormData({
-      nombre_comprador: "",
-      telefono: "",
-      metodo_pago: "efectivo",
-    }); // Limpiar formulario
+    setFormData({ nombre_comprador: '', telefono: '', metodo_pago: 'efectivo' });
     setIsModalOpen(true);
   };
 
@@ -84,28 +102,11 @@ export default function SorteoPublico() {
     setSelectedPuesto(null);
   };
 
-  const handleCopyLink = async () => {
-    try {
-      const shareUrl = window.location.href;
-      await navigator.clipboard.writeText(shareUrl);
-      setToastMessage("Link copiado");
-      setToastOpen(true);
-    } catch {
-      setToastMessage("No se pudo copiar el enlace");
-      setToastOpen(true);
-    }
-  };
-
   const handleReserva = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPuesto) return;
 
-    // Validación rápida
-    if (
-      !formData.nombre_comprador ||
-      !formData.telefono ||
-      !formData.metodo_pago
-    ) {
+    if (!formData.nombre_comprador || !formData.telefono || !formData.metodo_pago) {
       setErrorModal("Todos los campos son obligatorios");
       return;
     }
@@ -113,177 +114,113 @@ export default function SorteoPublico() {
     setLoadingReserva(true);
     setErrorModal(null);
 
-    // Hacemos el UPDATE a Supabase
     const { error: updateError } = await supabase
-      .from("puestos")
-      .update({
-        estado: "pendiente",
-        nombre_comprador: formData.nombre_comprador,
+      .from('puestos')
+      .update({ 
+        estado: 'pendiente', 
+        nombre_comprador: formData.nombre_comprador, 
         telefono: formData.telefono,
-        metodo_pago: formData.metodo_pago,
+        metodo_pago: formData.metodo_pago
       })
-      .eq("id", selectedPuesto.id)
-      .eq("estado", "disponible"); // Doble seguridad: solo si sigue disponible
+      .eq('id', selectedPuesto.id)
+      .eq('estado', 'disponible');
 
     setLoadingReserva(false);
 
     if (updateError) {
-      setErrorModal(
-        "Alguien más tomó este puesto justo ahora. Recarga la página.",
-      );
+      setErrorModal("Alguien más tomó este puesto justo ahora. Recarga la página.");
     } else {
-      // ¡ÉXITO! Actualizamos la UI local inmediatamente para que se ponga gris sin recargar
-      setPuestos((prev) =>
-        prev.map((p) =>
-          p.id === selectedPuesto.id
-            ? { ...p, estado: "pendiente" as const }
-            : p,
-        ),
-      );
-      handleCloseModal(); // Cerramos el modal
-      alert(
-        `¡Puesto ${selectedPuesto.numero} reservado con éxito! El creador verificará tu pago.`,
-      );
+      setPuestos(prev => prev.map(p => 
+        p.id === selectedPuesto.id 
+          ? { ...p, estado: 'pendiente' as const } 
+          : p
+      ));
+      handleCloseModal();
+      alert(`¡Puesto ${selectedPuesto.numero} reservado con éxito! El creador verificará tu pago.`);
     }
   };
 
-  const formatoMoneda = new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(sorteo?.precio || 0);
+  // Formateo de moneda
+  const formatoMoneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(sorteo?.precio || 0);
 
-  if (loading)
-    return (
-      <div className="p-10 text-center text-gray-500">Cargando sorteo...</div>
-    );
-  if (error)
-    return (
-      <div className="max-w-lg mx-auto mt-20 p-8 bg-white rounded-lg shadow text-center">
-        <p className="text-red-500 font-semibold mb-4">{error}</p>
-        <Link to="/">
-          <Button variant="ghost" className="w-auto! mx-auto!">
-            Volver al inicio
-          </Button>
-        </Link>
-      </div>
-    );
+  // ============================================================
+  // 4. RENDERIZADO
+  // ============================================================
+  if (loading) return <div className="p-10 text-center text-gray-500">Cargando sorteo...</div>;
+  if (error) return (
+    <div className="max-w-lg mx-auto mt-20 p-8 bg-white rounded-lg shadow text-center">
+      <p className="text-red-500 font-semibold mb-4">{error}</p>
+      <Link to="/"><Button variant="ghost" className="!w-auto !mx-auto">Volver al inicio</Button></Link>
+    </div>
+  );
   if (!sorteo) return null;
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6">
       {/* Cabecera del Sorteo */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div className="flex flex-col md:flex-row md:items-stretch">
-          <div className="order-1 md:w-2/5">
-            <div className="h-56 w-full overflow-hidden md:h-full md:min-h-72">
-              <img
-                src={sorteo.imagen ?? undefined}
-                alt={sorteo.titulo}
-                className="w-full h-full object-contain"
-              />
-            </div>
+        <div className="md:flex">
+          <div className="md:w-1/3 h-64 md:h-auto bg-gray-200">
+            <img src={sorteo.imagen ?? undefined} alt={sorteo.titulo} className="w-full h-full object-cover" />
           </div>
-
-          <div className="order-2 flex flex-1 flex-col justify-center gap-3 p-5 sm:p-6">
-            <h1 className="text-center text-2xl font-bold text-gray-900 sm:text-3xl md:text-left">
-              {sorteo.titulo}
-            </h1>
-            <div className="text-center md:text-left">
-              <p className="text-indigo-600 text-lg font-semibold">
-                🎉 Premio: {sorteo.titulo_premio}
-              </p>
-              {sorteo.descripcion_premio && (
-                <p className="mt-1 text-gray-600 text-sm">
-                  {sorteo.descripcion_premio}
-                </p>
-              )}
+          <div className="p-6 md:w-2/3 flex flex-col justify-center">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{sorteo.titulo}</h1>
+            <p className="text-indigo-600 text-lg font-semibold mb-4">🎉 Premio: {sorteo.titulo_premio}</p>
+            {sorteo.descripcion_premio && <p className="text-gray-600 text-sm mb-4">{sorteo.descripcion_premio}</p>}
+            
+            <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
+              <span className="font-semibold text-gray-800 text-lg">{formatoMoneda} <span className="text-xs font-normal">c/u</span></span>
+              <span>•</span>
+              {sorteo.fecha_sorteo && <span>Fecha: {new Date(sorteo.fecha_sorteo).toLocaleDateString()}</span>}
             </div>
 
-            <div className="flex flex-col items-center gap-2 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-3 md:justify-start">
-              <span className="font-semibold text-gray-800 text-base">
-                  {formatoMoneda}{" "}
-                  <span className="text-xs font-normal">c/u</span>
-              </span>
-              <span className="hidden h-8 border-l border-gray-300 sm:block" />
-              <span className="text-center sm:text-left">
-                Fecha:{" "}
-                {sorteo.fecha_sorteo
-                  ? new Date(sorteo.fecha_sorteo).toLocaleDateString(
-                      "es-ES",
-                      {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      },
-                    )
-                  : "Fecha no disponible"}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              aria-label="Copiar enlace para compartir"
-              title="Copiar enlace"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-indigo-600 bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              Compartir
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-4 w-4"
-                aria-hidden="true"
-              >
-                <path
-                  d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 1 0-7.07-7.07L10.1 4.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l2.83-2.83"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+            {/* Banner de finalizado */}
+            {sorteo.estado === 'finalizado' && (
+              <div className="mt-4 bg-green-50 border-l-4 border-green-500 p-3 rounded text-sm text-green-800 font-semibold">
+                ✓ Este sorteo ya finalizó
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <Toast
-        isOpen={toastOpen}
-        message={toastMessage}
-        onClose={() => setToastOpen(false)}
-        type={
-          toastMessage === "No se pudo copiar el enlace" ? "error" : "success"
-        }
-      />
+      {/* Botón Copiar Enlace */}
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="ghost" 
+          className="!w-auto !text-gray-700 !border !border-gray-300 hover:!bg-gray-50"
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            const btn = document.getElementById('btn-copiar-vista');
+            if (btn) {
+              const original = btn.innerText;
+              btn.innerText = '✅ Enlace copiado!';
+              setTimeout(() => btn.innerText = original, 2000);
+            }
+          }}
+        >
+          <span id="btn-copiar-vista">🔗 Copiar enlace para compartir</span>
+        </Button>
+      </div>
 
       {/* Tablero de Puestos */}
       <div className="bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
-          Selecciona tu número
-        </h2>
-
+        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">Selecciona tu número</h2>
+        
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
           {puestos.map((puesto) => {
-            const estaDisponible = puesto.estado === "disponible";
-
+            const estaDisponible = puesto.estado === 'disponible' && sorteo.estado !== 'finalizado';
+            
             return (
               <div
                 key={puesto.id}
                 className={`
                   aspect-square flex items-center justify-center rounded-lg text-sm font-bold border-2 transition-all
-                  ${
-                    estaDisponible
-                      ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-200 hover:scale-105 cursor-pointer"
-                      : "bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed line-through"
+                  ${estaDisponible 
+                    ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200 hover:scale-105 cursor-pointer' 
+                    : 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed line-through'
                   }
                 `}
-                // AQUÍ CONECTAMOS EL MODAL
                 onClick={() => handleOpenModal(puesto)}
               >
                 {puesto.numero}
@@ -291,7 +228,7 @@ export default function SorteoPublico() {
             );
           })}
         </div>
-
+        
         <div className="flex justify-center gap-6 mt-6 text-sm text-gray-600">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-100 border-2 border-green-300 rounded"></div>
@@ -299,75 +236,43 @@ export default function SorteoPublico() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-gray-200 border-2 border-gray-200 rounded"></div>
-            <span>Ocupado / Pendiente</span>
+            <span>Ocupado</span>
           </div>
         </div>
       </div>
 
-      {/* --- EL MODAL DE RESERVA --- */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        title={`Reservar Puesto #${selectedPuesto?.numero || ""}`}
-      >
-        <p className="text-gray-600 mb-4 text-sm">
-          Completa tus datos. El creador verificará tu pago de {formatoMoneda}{" "}
-          para confirmar tu número.
-        </p>
-
-        {errorModal && (
-          <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">
-            {errorModal}
-          </div>
-        )}
+      {/* Modal de Reserva */}
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={`Reservar Puesto #${selectedPuesto?.numero || ''}`}>
+        <p className="text-gray-600 mb-4 text-sm">Completa tus datos. El creador verificará tu pago de {formatoMoneda} para confirmar tu número.</p>
+        
+        {errorModal && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{errorModal}</div>}
 
         <form onSubmit={handleReserva} className="space-y-4">
-          <Input
-            id="modal-nombre"
-            label="Tu Nombre completo"
-            placeholder="Juan Pérez"
-            value={formData.nombre_comprador}
-            onChange={(e) =>
-              setFormData({ ...formData, nombre_comprador: e.target.value })
-            }
-          />
-          <Input
-            id="modal-tel"
-            label="Tu Teléfono (WhatsApp)"
-            placeholder="555 123 4567"
-            value={formData.telefono}
-            onChange={(e) =>
-              setFormData({ ...formData, telefono: e.target.value })
-            }
-          />
-          <Select
-            id="modal-pago"
-            label="¿Cómo vas a pagar?"
-            options={[
-              { value: "efectivo", label: "Efectivo" },
-              { value: "transferencia", label: "Transferencia Bancaria" },
-            ]}
-            value={formData.metodo_pago}
-            onChange={(e) =>
-              setFormData({ ...formData, metodo_pago: e.target.value })
-            }
-          />
-
+          <Input id="modal-nombre" label="Tu Nombre completo" placeholder="Juan Pérez" value={formData.nombre_comprador} onChange={(e) => setFormData({...formData, nombre_comprador: e.target.value})} />
+          <Input id="modal-tel" label="Tu Teléfono (WhatsApp)" placeholder="555 123 4567" value={formData.telefono} onChange={(e) => setFormData({...formData, telefono: e.target.value})} />
+          <Select id="modal-pago" label="¿Cómo vas a pagar?" options={[{ value: 'efectivo', label: 'Efectivo' }, { value: 'transferencia', label: 'Transferencia Bancaria' }]} value={formData.metodo_pago} onChange={(e) => setFormData({...formData, metodo_pago: e.target.value})} />
+          
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleCloseModal}
-              className="w-auto!"
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" loading={loadingReserva}>
-              {loadingReserva ? "Reservando..." : "Confirmar Reserva"}
-            </Button>
+            <Button type="button" variant="ghost" onClick={handleCloseModal} className="!w-auto">Cancelar</Button>
+            <Button type="submit" loading={loadingReserva}>{loadingReserva ? 'Reservando...' : 'Confirmar Reserva'}</Button>
           </div>
         </form>
       </Modal>
+
+      {/* Modal del Ganador */}
+      <Modal isOpen={isWinnerModalOpen} onClose={() => setDismissedWinnerSorteoId(sorteo.id)} title="🎉 ¡Sorteo Finalizado!">
+        <div className="text-center py-4">
+          <p className="text-gray-600 mb-4">El ganador del premio <strong>{sorteo.titulo_premio}</strong> es:</p>
+          <div className="my-6">
+            <span className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-indigo-100 text-indigo-600 text-4xl font-black border-4 border-indigo-300">
+              {sorteo.numero_ganador}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500">¡Felicidades al afortunado!</p>
+          <Button onClick={() => setDismissedWinnerSorteoId(sorteo.id)} className="mt-6 !w-auto !mx-auto">Cerrar</Button>
+        </div>
+      </Modal>
+
     </div>
   );
 }

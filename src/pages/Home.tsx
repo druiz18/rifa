@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/useAuth';
-import { version } from '../../package.json';
 
 export default function Home() {
   const { user } = useAuth();
@@ -83,13 +82,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* Footer simple */}
-      <footer className="bg-white border-t py-6 text-center text-sm text-gray-400">
-        © {new Date().getFullYear()} Rifa-co. Todos los derechos reservados.
-        <br />
-        v{version}
-      </footer>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useAuth } from "../context/useAuth";
 import type { Database } from "../lib/database.types";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
+import Input from "../components/ui/Input";
 
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 type Puesto = Database["public"]["Tables"]["puestos"]["Row"];
@@ -17,6 +18,10 @@ export default function GestionarSorteo() {
   const [sorteo, setSorteo] = useState<Sorteo | null>(null);
   const [puestos, setPuestos] = useState<Puesto[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [isWinnerModalOpen, setIsWinnerModalOpen] = useState(false);
+  const [winnerNumber, setWinnerNumber] = useState("");
+  const [loadingFinalize, setLoadingFinalize] = useState(false);
 
   // Estados para el Modal de Gestión
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,6 +77,36 @@ export default function GestionarSorteo() {
       .eq("id", selectedPuesto.id);
     updateLocalState(selectedPuesto.id, "disponible");
     setLoadingAction(false);
+  };
+
+  const handleFinalizarSorteo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sorteo || !winnerNumber) return;
+
+    const num = parseInt(winnerNumber);
+    if (isNaN(num) || num < 1 || num > sorteo.total_puestos) {
+      alert(`El número debe estar entre 1 y ${sorteo.total_puestos}`);
+      return;
+    }
+
+    setLoadingFinalize(true);
+    const { error } = await supabase
+      .from("sorteos")
+      .update({ estado: "finalizado", numero_ganador: num })
+      .eq("id", sorteo.id);
+
+    setLoadingFinalize(false);
+
+    if (error) {
+      alert("Error al finalizar: " + error.message);
+    } else {
+      // Actualizamos el estado local para que la UI cambie
+      setSorteo({ ...sorteo, estado: "finalizado", numero_ganador: num });
+      setIsWinnerModalOpen(false);
+      alert(
+        "¡Sorteo finalizado exitosamente! Los compradores verán el ganador.",
+      );
+    }
   };
 
   const updateLocalState = (
@@ -136,6 +171,41 @@ export default function GestionarSorteo() {
           ← Volver al Panel
         </Button>
       </div>
+
+      {sorteo.estado === "finalizado" ? (
+        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md mb-4 flex justify-between items-center">
+          <div>
+            <p className="font-bold text-green-800">🎉 Sorteo Finalizado</p>
+            <p className="text-sm text-green-700">
+              El número ganador es el{" "}
+              <span className="font-bold text-lg">{sorteo.numero_ganador}</span>
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            className="!w-auto !text-gray-600"
+            onClick={() => setIsWinnerModalOpen(true)}
+          >
+            Cambiar Ganador
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-md mb-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-yellow-800">
+              Este sorteo está activo. Cuando realices el sorteo físico,
+              registra el ganador aquí.
+            </p>
+            <Button
+              variant="danger"
+              className="!w-auto !bg-red-600"
+              onClick={() => setIsWinnerModalOpen(true)}
+            >
+              Finalizar y Declarar Ganador
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-xl shadow-md">
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
@@ -222,6 +292,43 @@ export default function GestionarSorteo() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Modal para ingresar el ganador */}
+      <Modal
+        isOpen={isWinnerModalOpen}
+        onClose={() => setIsWinnerModalOpen(false)}
+        title="Finalizar Sorteo"
+      >
+        <form onSubmit={handleFinalizarSorteo} className="space-y-4">
+          <p className="text-gray-600 text-sm">
+            Ingresa el número que salió premiado en el sorteo.
+          </p>
+          <Input
+            id="winner"
+            label={`Número Ganador (1 al ${sorteo.total_puestos})`}
+            type="number"
+            min="1"
+            max={sorteo.total_puestos}
+            placeholder="Ej: 45"
+            value={winnerNumber}
+            onChange={(e) => setWinnerNumber(e.target.value)}
+            required
+          />
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsWinnerModalOpen(false)}
+              className="!w-auto"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" loading={loadingFinalize}>
+              Confirmar Ganador
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

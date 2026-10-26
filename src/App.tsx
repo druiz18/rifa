@@ -9,6 +9,7 @@ import ComoFunciona from './pages/ComoFunciona';
 import Politicas from './pages/Politicas';
 import SorteoPublico from './pages/SorteoPublico';
 import GestionarSorteo from './pages/GestionarSorteo';
+import { version } from '../package.json';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -25,7 +26,7 @@ function App() {
         <Navbar />
         
         {/* El contenido cambia según la ruta */}
-        <main className="flex-1">
+        <main className="flex-1 flex flex-col">
           <Routes>
             {/* Rutas Públicas */}
             <Route path="/" element={<Home />} />
@@ -45,6 +46,11 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        <footer className="bg-white border-t py-6 text-center text-sm text-gray-400">
+          © {new Date().getFullYear()} Rifa-co. Todos los derechos reservados.
+          <br />
+          v{version}
+        </footer>
       </div>
     </BrowserRouter>
   );
