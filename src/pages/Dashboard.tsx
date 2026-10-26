@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 //import { useNavigate } from "react-router-dom";
-//import { useAuth } from "../context/useAuth";
+import { useAuth } from "../context/useAuth";
 import { supabase } from "../lib/supabase";
 import type { Database } from "../lib/database.types";
 import SorteoCard from "../components/sorteo/SorteoCard";
@@ -9,7 +9,8 @@ import SorteoCard from "../components/sorteo/SorteoCard";
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 
 export default function Dashboard() {
-  //const { profile } = useAuth();
+  //const { profile, signOut, user } = useAuth();
+  const { user } = useAuth();
   //const navigate = useNavigate();
 
   const [sorteos, setSorteos] = useState<Sorteo[]>([]);
@@ -17,10 +18,13 @@ export default function Dashboard() {
 
   // useEffect se ejecuta al cargar la página
   useEffect(() => {
+    if (!user) return; // Seguridad: si no hay usuario logueado, no pedimos nada
+
     const cargarSorteos = async () => {
       const { data, error } = await supabase
         .from("sorteos")
         .select("*")
+        .eq("creador_id", user.id) // <--- CAMBIO 1: Solo trae los sorteos de ESTE usuario
         .order("created_at", { ascending: false }); // Los más nuevos primero
 
       if (error) {
@@ -32,15 +36,14 @@ export default function Dashboard() {
     };
 
     void cargarSorteos();
-  }, []);
+  }, [user]); // <--- CAMBIO 2: Dependencia en "user" en lugar de array vacío
 
-    const eliminarSorteo = async (sorteoId: string, imagenUrl: string) => {
+  const eliminarSorteo = async (sorteoId: string, imagenUrl: string) => {
     // 1. Confirmación del usuario
     if (!confirm('¿Estás seguro? Se eliminará el sorteo, sus puestos y la imagen.')) return;
 
     try {
       // 2. Extraer el nombre del archivo de la URL para borrarlo del Storage
-      // La URL se ve así: https://.../storage/v1/object/public/sorteos-imagenes/nombre.jpg
       const urlParts = imagenUrl.split('/');
       const nombreArchivo = urlParts[urlParts.length - 1]; // Extrae 'nombre.jpg'
 
