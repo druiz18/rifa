@@ -156,20 +156,29 @@ export default function GestionarSorteo() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Gestionando: {sorteo.titulo}</h1>
-          <p className="text-gray-500 text-sm">
-            Aquí puedes verificar pagos o liberar puestos.
-          </p>
-        </div>
-        <Button
+      <Button
           variant="ghost"
           onClick={() => navigate("/dashboard")}
           className="w-auto! text-gray-600!"
         >
           ← Volver al Panel
         </Button>
+      <div className="flex justify-between items-center mb-6">
+        <div className="mr-4">
+          <h1 className="text-2xl font-bold">Gestionando: {sorteo.titulo}</h1>
+          <p className="text-gray-500 text-sm">
+            Aquí puedes verificar pagos o liberar puestos.
+          </p>
+        </div>
+        {sorteo.estado === "activo" && (
+          <button
+            onClick={() => navigate(`/editar-sorteo/${sorteo.id}`)}
+            className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+          >
+            Editar Sorteo
+          </button>
+        )}
+        
       </div>
 
       {sorteo.estado === "finalizado" ? (
@@ -198,7 +207,7 @@ export default function GestionarSorteo() {
             </p>
             <Button
               variant="danger"
-              className="!w-auto !bg-red-600"
+              className="!w-auto !bg-red-600 ml-4"
               onClick={() => setIsWinnerModalOpen(true)}
             >
               Finalizar y Declarar Ganador

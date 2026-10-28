@@ -1,15 +1,16 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/useAuth';
-import Navbar from './components/layout/Navbar';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import CrearSorteo from './pages/CrearSorteo';
-import Home from './pages/Home';
-import ComoFunciona from './pages/ComoFunciona';
-import Politicas from './pages/Politicas';
-import SorteoPublico from './pages/SorteoPublico';
-import GestionarSorteo from './pages/GestionarSorteo';
-import { version } from '../package.json';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./context/useAuth";
+import Navbar from "./components/layout/Navbar";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import CrearSorteo from "./pages/CrearSorteo";
+import Home from "./pages/Home";
+import ComoFunciona from "./pages/ComoFunciona";
+import Politicas from "./pages/Politicas";
+import SorteoPublico from "./pages/SorteoPublico";
+import GestionarSorteo from "./pages/GestionarSorteo";
+import { version } from "../package.json";
+import EditarSorteo from "./pages/EditarSorteo";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -24,7 +25,7 @@ function App() {
       {/* El Layout Global envuelve TODA la app */}
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        
+
         {/* El contenido cambia según la ruta */}
         <main className="flex-1 flex flex-col">
           <Routes>
@@ -35,12 +36,41 @@ function App() {
             <Route path="/login" element={<Login />} />
 
             {/* RUTA PÚBLICA DEL SORTEO */}
-          <Route path="/sorteo/:id" element={<SorteoPublico />} />
+            <Route path="/sorteo/:id" element={<SorteoPublico />} />
 
             {/* Rutas Protegidas */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/crear-sorteo" element={<ProtectedRoute><CrearSorteo /></ProtectedRoute>} />
-            <Route path="/gestionar-sorteo/:id" element={<ProtectedRoute><GestionarSorteo /></ProtectedRoute>} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crear-sorteo"
+              element={
+                <ProtectedRoute>
+                  <CrearSorteo />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gestionar-sorteo/:id"
+              element={
+                <ProtectedRoute>
+                  <GestionarSorteo />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/editar-sorteo/:id"
+              element={
+                <ProtectedRoute>
+                  <EditarSorteo />
+                </ProtectedRoute>
+              }
+            />
 
             {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -48,8 +78,7 @@ function App() {
         </main>
         <footer className="bg-white border-t py-6 text-center text-sm text-gray-400">
           © {new Date().getFullYear()} Rifa-co. Todos los derechos reservados.
-          <br />
-          v{version}
+          <br />v{version}
         </footer>
       </div>
     </BrowserRouter>
