@@ -192,7 +192,7 @@ export default function GestionarSorteo() {
           </div>
           <Button
             variant="ghost"
-            className="!w-auto !text-gray-600"
+            className="w-auto text-gray-600"
             onClick={() => setIsWinnerModalOpen(true)}
           >
             Cambiar Ganador
@@ -207,7 +207,7 @@ export default function GestionarSorteo() {
             </p>
             <Button
               variant="danger"
-              className="!w-auto !bg-red-600 ml-4"
+              className="w-auto bg-red-600 ml-4"
               onClick={() => setIsWinnerModalOpen(true)}
             >
               Finalizar y Declarar Ganador
@@ -336,7 +336,7 @@ export default function GestionarSorteo() {
               type="button"
               variant="ghost"
               onClick={() => setIsWinnerModalOpen(false)}
-              className="!w-auto"
+              className="w-auto"
             >
               Cancelar
             </Button>

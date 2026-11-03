@@ -130,7 +130,7 @@ export default function CrearSorteo() {
     }
 
     const CELULAR_RE = /^\d{10}$/; // celular colombiano
-    const LLAVE_RE = /^[A-Za-z0-9]{4,64}$/; // llave Bre-B: numérica o alfanumérica
+    const LLAVE_RE = /^[A-Za-z0-9@]{4,64}$/; // llave Bre-B: numérica, alfanumérica o con @
 
     if (pagoNequi.trim() && !CELULAR_RE.test(pagoNequi.trim()))
       return setError("El número de Nequi debe tener 10 dígitos.");
@@ -138,7 +138,7 @@ export default function CrearSorteo() {
       return setError("El número de Daviplata debe tener 10 dígitos.");
     if (pagoLlave.trim() && !LLAVE_RE.test(pagoLlave.trim()))
       return setError(
-        "La llave Bre-B debe ser numérica o alfanumérica (4 a 64 caracteres, sin espacios).",
+        "La llave Bre-B debe tener entre 4 y 64 caracteres alfanuméricos o @, sin espacios.",
       );
   };
 

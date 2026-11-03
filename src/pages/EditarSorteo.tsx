@@ -454,13 +454,13 @@ export default function EditarSorteo() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button type="submit" loading={guardando} className="!w-auto">
+          <Button type="submit" loading={guardando} className="w-auto">
             💾 Guardar Cambios
           </Button>
           <Button
             type="button"
             variant="ghost"
-            className="!w-auto"
+            className="w-auto"
             onClick={() => navigate(`/gestionar-sorteo/${sorteo.id}`)}
           >
             Cancelar
