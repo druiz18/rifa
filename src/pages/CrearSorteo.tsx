@@ -8,6 +8,10 @@ import Button from "../components/ui/Button";
 export default function CrearSorteo() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [responsable, setResponsable] = useState("");
+  const [pagoNequi, setPagoNequi] = useState("");
+  const [pagoDaviplata, setPagoDaviplata] = useState("");
+  const [pagoLlave, setPagoLlave] = useState("");
 
   // Estado del formulario
   const [loading, setLoading] = useState(false);
@@ -82,6 +86,10 @@ export default function CrearSorteo() {
             total_puestos: parseInt(formData.total_puestos),
             fecha_sorteo: formData.fecha_sorteo,
             imagen: imagenUrl,
+            responsable: responsable.trim() || null,
+            pago_nequi: pagoNequi.trim() || null,
+            pago_daviplata: pagoDaviplata.trim() || null,
+            pago_llave: pagoLlave.trim() || null,
           },
         ])
         .select() // <- ¡CLAVE! Para obtener el ID de vuelta
@@ -120,6 +128,18 @@ export default function CrearSorteo() {
     } finally {
       setLoading(false);
     }
+
+    const CELULAR_RE = /^\d{10}$/; // celular colombiano
+    const LLAVE_RE = /^[A-Za-z0-9]{4,64}$/; // llave Bre-B: numérica o alfanumérica
+
+    if (pagoNequi.trim() && !CELULAR_RE.test(pagoNequi.trim()))
+      return setError("El número de Nequi debe tener 10 dígitos.");
+    if (pagoDaviplata.trim() && !CELULAR_RE.test(pagoDaviplata.trim()))
+      return setError("El número de Daviplata debe tener 10 dígitos.");
+    if (pagoLlave.trim() && !LLAVE_RE.test(pagoLlave.trim()))
+      return setError(
+        "La llave Bre-B debe ser numérica o alfanumérica (4 a 64 caracteres, sin espacios).",
+      );
   };
 
   return (
@@ -173,6 +193,53 @@ export default function CrearSorteo() {
               placeholder="Año 2023, 0km"
               value={formData.descripcion_premio}
               onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* ── Datos para recibir pagos (opcional) ── */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm font-semibold text-gray-800">
+            💳 Datos para recibir pagos (opcional)
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Registra hasta tres opciones de transferencia. Los compradores las
+            verán para enviarte el pago. Déjalas vacías si solo recibirás
+            efectivo.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            <Input
+              label="Responsable (quien recibe el dinero)"
+              value={responsable}
+              onChange={(e) => setResponsable(e.target.value)}
+              placeholder="Ej. María Gómez"
+            />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Nequi (número celular)"
+                value={pagoNequi}
+                onChange={(e) => setPagoNequi(e.target.value)}
+                placeholder="Ej. 3001234567"
+                inputMode="numeric"
+                maxLength={10}
+              />
+              <Input
+                label="Daviplata (número celular)"
+                value={pagoDaviplata}
+                onChange={(e) => setPagoDaviplata(e.target.value)}
+                placeholder="Ej. 3001234567"
+                inputMode="numeric"
+                maxLength={10}
+              />
+            </div>
+
+            <Input
+              label="Llave Bre-B (numérica o alfanumérica)"
+              value={pagoLlave}
+              onChange={(e) => setPagoLlave(e.target.value)}
+              placeholder="Ej. MariaGomez2026 o 123456789"
             />
           </div>
         </div>

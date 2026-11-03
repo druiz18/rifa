@@ -93,7 +93,11 @@ export type Database = {
           id: string
           imagen: string | null
           numero_ganador: number | null
+          pago_daviplata: string | null
+          pago_llave: string | null
+          pago_nequi: string | null
           precio: number
+          responsable: string | null
           titulo: string
           titulo_premio: string
           total_puestos: number
@@ -108,7 +112,11 @@ export type Database = {
           id?: string
           imagen?: string | null
           numero_ganador?: number | null
+          pago_daviplata?: string | null
+          pago_llave?: string | null
+          pago_nequi?: string | null
           precio: number
+          responsable?: string | null
           titulo: string
           titulo_premio: string
           total_puestos: number
@@ -123,7 +131,11 @@ export type Database = {
           id?: string
           imagen?: string | null
           numero_ganador?: number | null
+          pago_daviplata?: string | null
+          pago_llave?: string | null
+          pago_nequi?: string | null
           precio?: number
+          responsable?: string | null
           titulo?: string
           titulo_premio?: string
           total_puestos?: number

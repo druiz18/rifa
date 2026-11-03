@@ -45,6 +45,11 @@ export default function EditarSorteo() {
   const [imagenActual, setImagenActual] = useState<string | null>(null);
   const [nuevaImagen, setNuevaImagen] = useState<File | null>(null);
 
+  const [responsable, setResponsable] = useState("");
+  const [pagoNequi, setPagoNequi] = useState("");
+  const [pagoDaviplata, setPagoDaviplata] = useState("");
+  const [pagoLlave, setPagoLlave] = useState("");
+
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -74,6 +79,10 @@ export default function EditarSorteo() {
       setFechaSorteo(toLocalInput(data.fecha_sorteo));
       setTotalPuestos(String(data.total_puestos));
       setImagenActual(data.imagen);
+      setResponsable(data.responsable || "");
+      setPagoNequi(data.pago_nequi || "");
+      setPagoDaviplata(data.pago_daviplata || "");
+      setPagoLlave(data.pago_llave || "");
       setCargando(false);
     };
 
@@ -104,17 +113,24 @@ export default function EditarSorteo() {
   const ajustarPuestos = async (
     sorteoId: string,
     totalViejo: number,
-    totalNuevo: number
+    totalNuevo: number,
   ) => {
     if (totalNuevo > totalViejo) {
-      const nuevos = Array.from({ length: totalNuevo - totalViejo }, (_, i) => ({
-        sorteo_id: sorteoId,
-        numero: totalViejo + i + 1,
-      }));
+      const nuevos = Array.from(
+        { length: totalNuevo - totalViejo },
+        (_, i) => ({
+          sorteo_id: sorteoId,
+          numero: totalViejo + i + 1,
+        }),
+      );
 
-      const { error: insertError } = await supabase.from("puestos").insert(nuevos);
+      const { error: insertError } = await supabase
+        .from("puestos")
+        .insert(nuevos);
       if (insertError) {
-        throw new Error("No se pudieron crear los puestos nuevos: " + insertError.message);
+        throw new Error(
+          "No se pudieron crear los puestos nuevos: " + insertError.message,
+        );
       }
     } else {
       // Antes de borrar: verificar que los puestos que quedan fuera del
@@ -129,7 +145,7 @@ export default function EditarSorteo() {
       if (ocupados && ocupados.length > 0) {
         throw new Error(
           `No puedes reducir a ${totalNuevo} puestos: el puesto #${ocupados[0].numero} ` +
-            `ya está ${ocupados[0].estado}. Libéralo primero desde la gestión de ventas.`
+            `ya está ${ocupados[0].estado}. Libéralo primero desde la gestión de ventas.`,
         );
       }
 
@@ -141,7 +157,9 @@ export default function EditarSorteo() {
         .eq("estado", "disponible");
 
       if (deleteError) {
-        throw new Error("No se pudieron eliminar los puestos: " + deleteError.message);
+        throw new Error(
+          "No se pudieron eliminar los puestos: " + deleteError.message,
+        );
       }
     }
   };
@@ -161,7 +179,8 @@ export default function EditarSorteo() {
     const totalNum = parseInt(totalPuestos, 10);
 
     if (!titulo.trim()) return setError("El título del sorteo es obligatorio.");
-    if (!tituloPremio.trim()) return setError("El título del premio es obligatorio.");
+    if (!tituloPremio.trim())
+      return setError("El título del premio es obligatorio.");
     if (isNaN(precioNum) || precioNum <= 0)
       return setError("El precio debe ser un número mayor a 0.");
     if (isNaN(totalNum) || totalNum < 1)
@@ -211,6 +230,10 @@ export default function EditarSorteo() {
           fecha_sorteo: new Date(fechaSorteo).toISOString(),
           total_puestos: totalNum,
           imagen: imagenFinal,
+          responsable: responsable.trim() || null,
+          pago_nequi: pagoNequi.trim() || null,
+          pago_daviplata: pagoDaviplata.trim() || null,
+          pago_llave: pagoLlave.trim() || null,
         })
         .eq("id", sorteo.id);
 
@@ -218,18 +241,34 @@ export default function EditarSorteo() {
 
       // 4) Borrar la imagen anterior de Storage (si la reemplazó)
       if (imagenViejaABorrar) {
-        await supabase.storage.from("sorteos-imagenes").remove([imagenViejaABorrar]);
+        await supabase.storage
+          .from("sorteos-imagenes")
+          .remove([imagenViejaABorrar]);
       }
 
       navigate(`/gestionar-sorteo/${sorteo.id}`);
     } catch (err) {
       console.error("Error al guardar los cambios:", err);
       setError(
-        err instanceof Error ? err.message : "Ocurrió un error al guardar los cambios."
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error al guardar los cambios.",
       );
     } finally {
       setGuardando(false);
     }
+
+    const CELULAR_RE = /^\d{10}$/; // celular colombiano
+    const LLAVE_RE = /^[A-Za-z0-9]{4,64}$/; // llave Bre-B: numérica o alfanumérica
+
+    if (pagoNequi.trim() && !CELULAR_RE.test(pagoNequi.trim()))
+      return setError("El número de Nequi debe tener 10 dígitos.");
+    if (pagoDaviplata.trim() && !CELULAR_RE.test(pagoDaviplata.trim()))
+      return setError("El número de Daviplata debe tener 10 dígitos.");
+    if (pagoLlave.trim() && !LLAVE_RE.test(pagoLlave.trim()))
+      return setError(
+        "La llave Bre-B debe ser numérica o alfanumérica (4 a 64 caracteres, sin espacios).",
+      );
   };
 
   const preview = useMemo(() => {
@@ -260,12 +299,14 @@ export default function EditarSorteo() {
 
       <h1 className="text-xl font-bold text-gray-900">Editar Sorteo</h1>
       <p className="mt-1 text-gray-500">
-        Actualiza los datos del sorteo. Los compradores verán los cambios de inmediato.
+        Actualiza los datos del sorteo. Los compradores verán los cambios de
+        inmediato.
       </p>
 
       {!editable && (
         <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-          ⚠️ Este sorteo está <strong>{sorteo.estado}</strong> y ya no puede editarse.
+          ⚠️ Este sorteo está <strong>{sorteo.estado}</strong> y ya no puede
+          editarse.
         </div>
       )}
 
@@ -320,6 +361,53 @@ export default function EditarSorteo() {
           onChange={(e) => setDescripcionPremio(e.target.value)}
         />
 
+        {/* ── Datos para recibir pagos (opcional) ── */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm font-semibold text-gray-800">
+            💳 Datos para recibir pagos (opcional)
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Registra hasta tres opciones de transferencia. Los compradores las
+            verán para enviarte el pago. Déjalas vacías si solo recibirás
+            efectivo.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            <Input
+              label="Responsable (quien recibe el dinero)"
+              value={responsable}
+              onChange={(e) => setResponsable(e.target.value)}
+              placeholder="Ej. María Gómez"
+            />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Nequi (número celular)"
+                value={pagoNequi}
+                onChange={(e) => setPagoNequi(e.target.value)}
+                placeholder="Ej. 3001234567"
+                inputMode="numeric"
+                maxLength={10}
+              />
+              <Input
+                label="Daviplata (número celular)"
+                value={pagoDaviplata}
+                onChange={(e) => setPagoDaviplata(e.target.value)}
+                placeholder="Ej. 3001234567"
+                inputMode="numeric"
+                maxLength={10}
+              />
+            </div>
+
+            <Input
+              label="Llave Bre-B (numérica o alfanumérica)"
+              value={pagoLlave}
+              onChange={(e) => setPagoLlave(e.target.value)}
+              placeholder="Ej. MariaGomez2026 o 123456789"
+            />
+          </div>
+        </div>
+
         <div>
           <Input
             label="Total de puestos"
@@ -329,9 +417,9 @@ export default function EditarSorteo() {
             onChange={(e) => setTotalPuestos(e.target.value)}
           />
           <p className="mt-1 text-xs text-gray-500">
-            Actualmente hay {sorteo.total_puestos} puestos. Si aumentas el número se
-            crearán puestos nuevos; si lo reduces solo se eliminan los puestos que
-            siguen libres (los vendidos o pendientes se protegen).
+            Actualmente hay {sorteo.total_puestos} puestos. Si aumentas el
+            número se crearán puestos nuevos; si lo reduces solo se eliminan los
+            puestos que siguen libres (los vendidos o pendientes se protegen).
           </p>
         </div>
 

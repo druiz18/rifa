@@ -6,6 +6,7 @@ import type { Database } from "../lib/database.types";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import Input from "../components/ui/Input";
+import InfoPago from "../components/sorteo/InfoPago";
 
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 type Puesto = Database["public"]["Tables"]["puestos"]["Row"];
@@ -157,12 +158,12 @@ export default function GestionarSorteo() {
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6">
       <Button
-          variant="ghost"
-          onClick={() => navigate("/dashboard")}
-          className="w-auto! text-gray-600!"
-        >
-          ← Volver al Panel
-        </Button>
+        variant="ghost"
+        onClick={() => navigate("/dashboard")}
+        className="w-auto! text-gray-600!"
+      >
+        ← Volver al Panel
+      </Button>
       <div className="flex justify-between items-center mb-6">
         <div className="mr-4">
           <h1 className="text-2xl font-bold">Gestionando: {sorteo.titulo}</h1>
@@ -178,7 +179,6 @@ export default function GestionarSorteo() {
             Editar Sorteo
           </button>
         )}
-        
       </div>
 
       {sorteo.estado === "finalizado" ? (
@@ -244,6 +244,13 @@ export default function GestionarSorteo() {
             Pagado (Vendido)
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <p className="mb-2 text-sm font-semibold text-gray-800">
+          💳 Datos de pago que ven los compradores
+        </p>
+        <InfoPago sorteo={sorteo} compacto />
       </div>
 
       {/* Modal de Gestión (Solo para el creador) */}
