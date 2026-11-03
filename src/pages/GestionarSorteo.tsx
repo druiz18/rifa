@@ -1,349 +1,564 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import type { FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../context/useAuth";
 import type { Database } from "../lib/database.types";
+import { useAuth } from "../context/useAuth"
 import Button from "../components/ui/Button";
-import Modal from "../components/ui/Modal";
 import Input from "../components/ui/Input";
+import Modal from "../components/ui/Modal";
 import InfoPago from "../components/sorteo/InfoPago";
 
 type Sorteo = Database["public"]["Tables"]["sorteos"]["Row"];
 type Puesto = Database["public"]["Tables"]["puestos"]["Row"];
 
+const formatoPrecio = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
+
+const formatoFecha = new Intl.DateTimeFormat("es-CO", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+type EstadoVista = "ok" | "no-encontrado" | "sin-permiso";
+
 export default function GestionarSorteo() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
+  // ── Datos ───────────────────────────────────────────────────────
   const [sorteo, setSorteo] = useState<Sorteo | null>(null);
   const [puestos, setPuestos] = useState<Puesto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cargando, setCargando] = useState(true);
+  const [estadoVista, setEstadoVista] = useState<EstadoVista>("ok");
 
-  const [isWinnerModalOpen, setIsWinnerModalOpen] = useState(false);
-  const [winnerNumber, setWinnerNumber] = useState("");
-  const [loadingFinalize, setLoadingFinalize] = useState(false);
+  // ── Modal de gestión de un puesto ───────────────────────────────
+  const [puestoDetalle, setPuestoDetalle] = useState<Puesto | null>(null);
+  const [relacionados, setRelacionados] = useState<Puesto[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [actualizando, setActualizando] = useState(false);
 
-  // Estados para el Modal de Gestión
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPuesto, setSelectedPuesto] = useState<Puesto | null>(null);
-  const [loadingAction, setLoadingAction] = useState(false);
+  // ── Modal de finalización ───────────────────────────────────────
+  const [modalFinalizarOpen, setModalFinalizarOpen] = useState(false);
+  const [numeroGanador, setNumeroGanador] = useState("");
+  const [finalizando, setFinalizando] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
+  const [error, setError] = useState("");
 
-    const fetchSorteoData = async () => {
-      const { data: sorteoData } = await supabase
-        .from("sorteos")
-        .select("*")
-        .eq("id", id)
-        .single();
-      setSorteo(sorteoData);
+  // ═══ Carga de datos ═════════════════════════════════════════════
+  const fetchSorteoData = async () => {
+    if (!id || !user) return;
 
-      const { data: puestosData } = await supabase
-        .from("puestos")
-        .select("*")
-        .eq("sorteo_id", id)
-        .order("numero", { ascending: true });
-      setPuestos(puestosData || []);
-      setLoading(false);
-    };
+    const { data: sorteoData, error: sorteoError } = await supabase
+      .from("sorteos")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    fetchSorteoData();
-  }, [id]);
+    if (sorteoError || !sorteoData) {
+      setEstadoVista("no-encontrado");
+      setCargando(false);
+      return;
+    }
 
-  // Funciones para cambiar el estado
-  const handleMarcarPagado = async () => {
-    if (!selectedPuesto) return;
-    setLoadingAction(true);
-    await supabase
+    // Solo el creador puede gestionar el sorteo
+    if (sorteoData.creador_id !== user.id) {
+      setEstadoVista("sin-permiso");
+      setCargando(false);
+      return;
+    }
+
+    const { data: puestosData, error: puestosError } = await supabase
       .from("puestos")
-      .update({ estado: "vendido" })
-      .eq("id", selectedPuesto.id);
-    updateLocalState(selectedPuesto.id, "vendido");
-    setLoadingAction(false);
+      .select("*")
+      .eq("sorteo_id", id)
+      .order("numero", { ascending: true });
+
+    if (puestosError) console.error("Error al cargar los puestos:", puestosError);
+
+    setSorteo(sorteoData);
+    setPuestos(puestosData || []);
+    setCargando(false);
   };
 
-  const handleLiberar = async () => {
-    if (!selectedPuesto) return;
-    setLoadingAction(true);
-    await supabase
+  useEffect(() => {
+    void Promise.resolve().then(fetchSorteoData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
+
+  // ═══ Handlers ═══════════════════════════════════════════════════
+  const abrirModalGestion = async (puesto: Puesto) => {
+    setPuestoDetalle(puesto);
+    setRelacionados([puesto]);
+    setError("");
+    setModalOpen(true);
+
+    // Puestos del mismo grupo (selección múltiple)
+    const { data } = await supabase
+      .from("puestos")
+      .select("*")
+      .eq("grupo_id", puesto.grupo_id)
+      .order("numero", { ascending: true });
+    if (data) setRelacionados(data);
+  };
+
+  const confirmarPago = async () => {
+    if (!puestoDetalle) return;
+    setActualizando(true);
+    setError("");
+
+    // Confirma TODOS los puestos del mismo grupo
+    const { error: updateError } = await supabase
+      .from("puestos")
+      .update({ estado: "vendido", updated_at: new Date().toISOString() })
+      .eq("grupo_id", puestoDetalle.grupo_id);
+
+    if (updateError) {
+      setError("No se pudo confirmar el pago: " + updateError.message);
+    } else {
+      setModalOpen(false);
+      await fetchSorteoData();
+    }
+    setActualizando(false);
+  };
+
+  const liberarPuesto = async () => {
+    if (!puestoDetalle) return;
+    setActualizando(true);
+    setError("");
+
+    // Libera TODOS los puestos del mismo grupo y limpia datos del comprador
+    const { error: updateError } = await supabase
       .from("puestos")
       .update({
         estado: "disponible",
         nombre_comprador: null,
         telefono: null,
         metodo_pago: null,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", selectedPuesto.id);
-    updateLocalState(selectedPuesto.id, "disponible");
-    setLoadingAction(false);
+      .eq("grupo_id", puestoDetalle.grupo_id);
+
+    if (updateError) {
+      setError("No se pudo liberar el puesto: " + updateError.message);
+    } else {
+      setModalOpen(false);
+      await fetchSorteoData();
+    }
+    setActualizando(false);
   };
 
-  const handleFinalizarSorteo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sorteo || !winnerNumber) return;
+  const abrirModalFinalizar = () => {
+    setNumeroGanador("");
+    setError("");
+    setModalFinalizarOpen(true);
+  };
 
-    const num = parseInt(winnerNumber);
+  const finalizarSorteo = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!sorteo) return;
+    setError("");
+
+    const num = parseInt(numeroGanador, 10);
     if (isNaN(num) || num < 1 || num > sorteo.total_puestos) {
-      alert(`El número debe estar entre 1 y ${sorteo.total_puestos}`);
-      return;
+      return setError(
+        `El número ganador debe estar entre 1 y ${sorteo.total_puestos}.`
+      );
     }
 
-    setLoadingFinalize(true);
-    const { error } = await supabase
+    setFinalizando(true);
+    const { error: updateError } = await supabase
       .from("sorteos")
       .update({ estado: "finalizado", numero_ganador: num })
       .eq("id", sorteo.id);
 
-    setLoadingFinalize(false);
-
-    if (error) {
-      alert("Error al finalizar: " + error.message);
+    if (updateError) {
+      setError("No se pudo finalizar el sorteo: " + updateError.message);
     } else {
-      // Actualizamos el estado local para que la UI cambie
-      setSorteo({ ...sorteo, estado: "finalizado", numero_ganador: num });
-      setIsWinnerModalOpen(false);
-      alert(
-        "¡Sorteo finalizado exitosamente! Los compradores verán el ganador.",
-      );
+      setModalFinalizarOpen(false);
+      await fetchSorteoData();
     }
+    setFinalizando(false);
   };
 
-  const updateLocalState = (
-    puestoId: string,
-    nuevoEstado: Puesto["estado"],
-  ) => {
-    setPuestos((prev) =>
-      prev.map((p) => (p.id === puestoId ? { ...p, estado: nuevoEstado } : p)),
-    );
-    setIsModalOpen(false);
-    setSelectedPuesto(null);
-  };
-
-  const openModal = (puesto: Puesto) => {
-    // Solo abrir modal si está pendiente o vendido (para ver quién fue)
-    if (puesto.estado === "disponible") return;
-    setSelectedPuesto(puesto);
-    setIsModalOpen(true);
-  };
-
-  if (loading)
-    return <div className="p-10 text-center">Cargando gestión...</div>;
-  if (!sorteo)
-    return <div className="p-10 text-center">Sorteo no encontrado</div>;
-
-  // Seguridad básica: Si no es el dueño, echarlo
-  if (sorteo.creador_id !== user?.id) {
+  // ═══ Guards de render ═══════════════════════════════════════════
+  if (cargando) {
     return (
-      <div className="p-10 text-center text-red-500">
-        No tienes permisos para gestionar este sorteo.
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-gray-500">Cargando gestión...</p>
       </div>
     );
   }
 
-  const getColorClasses = (estado: string) => {
-    switch (estado) {
-      case "disponible":
-        return "bg-green-100 text-green-800 border-green-300";
-      case "pendiente":
-        return "bg-yellow-100 text-yellow-800 border-yellow-400 cursor-pointer hover:bg-yellow-200 hover:scale-105 animate-pulse"; // animate-pulse para llamar la atención
-      case "vendido":
-        return "bg-red-100 text-red-800 border-red-300 cursor-pointer hover:bg-red-200";
-      default:
-        return "bg-gray-100 text-gray-400 border-gray-200";
-    }
-  };
+  if (estadoVista === "no-encontrado") {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-5xl">🔍</p>
+        <h1 className="text-2xl font-bold text-gray-900">Sorteo no encontrado</h1>
+        <Button className="!w-auto" onClick={() => navigate("/dashboard")}>
+          Volver al panel
+        </Button>
+      </div>
+    );
+  }
 
+  if (estadoVista === "sin-permiso") {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-5xl">🚫</p>
+        <h1 className="text-2xl font-bold text-gray-900">Sin permiso</h1>
+        <p className="text-gray-500">Solo el creador del sorteo puede gestionarlo.</p>
+        <Button className="!w-auto" onClick={() => navigate("/dashboard")}>
+          Volver al panel
+        </Button>
+      </div>
+    );
+  }
+
+  if (!sorteo) return null;
+
+  // ═══ Derivados ══════════════════════════════════════════════════
+  const vendidos = puestos.filter((p) => p.estado === "vendido").length;
+  const pendientes = puestos.filter((p) => p.estado === "pendiente").length;
+  const disponibles = puestos.filter((p) => p.estado === "disponible").length;
+  const recaudado = vendidos * Number(sorteo.precio);
+  const porConfirmar = pendientes * Number(sorteo.precio);
+
+  const esGanador = (puesto: Puesto) =>
+    sorteo.estado === "finalizado" &&
+    sorteo.numero_ganador !== null &&
+    puesto.numero === sorteo.numero_ganador;
+
+  // ═══ Render ═════════════════════════════════════════════════════
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6">
-      <Button
-        variant="ghost"
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      {/* Encabezado */}
+      <button
         onClick={() => navigate("/dashboard")}
-        className="w-auto! text-gray-600!"
+        className="mb-4 text-sm font-medium text-gray-500 hover:text-gray-700"
       >
-        ← Volver al Panel
-      </Button>
-      <div className="flex justify-between items-center mb-6">
-        <div className="mr-4">
-          <h1 className="text-2xl font-bold">Gestionando: {sorteo.titulo}</h1>
-          <p className="text-gray-500 text-sm">
-            Aquí puedes verificar pagos o liberar puestos.
+        ← Volver al panel
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-gray-900">{sorteo.titulo}</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {sorteo.fecha_sorteo
+              ? `Sorteo: ${formatoFecha.format(new Date(sorteo.fecha_sorteo))}`
+              : "Fecha por definir"}{" "}
+            · {formatoPrecio.format(Number(sorteo.precio))} por puesto
           </p>
         </div>
         {sorteo.estado === "activo" && (
           <button
             onClick={() => navigate(`/editar-sorteo/${sorteo.id}`)}
-            className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+            className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
           >
-            Editar Sorteo
+            ✏️ Editar Sorteo
           </button>
         )}
       </div>
 
-      {sorteo.estado === "finalizado" ? (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md mb-4 flex justify-between items-center">
-          <div>
-            <p className="font-bold text-green-800">🎉 Sorteo Finalizado</p>
-            <p className="text-sm text-green-700">
-              El número ganador es el{" "}
-              <span className="font-bold text-lg">{sorteo.numero_ganador}</span>
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            className="w-auto text-gray-600"
-            onClick={() => setIsWinnerModalOpen(true)}
-          >
-            Cambiar Ganador
+      {/* Banner de estado / acción principal */}
+      {sorteo.estado === "activo" && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <p className="text-sm text-yellow-800">
+            ⏳ Tienes <strong>{pendientes}</strong> puesto(s) pendiente(s) de verificar.
+          </p>
+          <Button variant="danger" className="!w-auto" onClick={abrirModalFinalizar}>
+            🏁 Finalizar sorteo
           </Button>
-        </div>
-      ) : (
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-md mb-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-yellow-800">
-              Este sorteo está activo. Cuando realices el sorteo físico,
-              registra el ganador aquí.
-            </p>
-            <Button
-              variant="danger"
-              className="w-auto bg-red-600 ml-4"
-              onClick={() => setIsWinnerModalOpen(true)}
-            >
-              Finalizar y Declarar Ganador
-            </Button>
-          </div>
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-xl shadow-md">
-        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-          {puestos.map((puesto) => (
-            <div
-              key={puesto.id}
-              className={`aspect-square flex items-center justify-center rounded-lg text-sm font-bold border-2 transition-all ${getColorClasses(puesto.estado)}`}
-              onClick={() => openModal(puesto)}
-            >
-              {puesto.numero}
-            </div>
-          ))}
+      {sorteo.estado === "finalizado" && (
+        <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          ✓ Sorteo finalizado
+          {sorteo.numero_ganador ? ` · Puesto ganador: #${sorteo.numero_ganador}` : ""}.
+          Ya no se pueden confirmar ni liberar puestos.
         </div>
+      )}
 
-        {/* Leyenda del Creador */}
-        <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-100 border-2 border-green-300 rounded"></div>{" "}
-            Disponible
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-400 rounded animate-pulse"></div>{" "}
-            Pendiente de Pago
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-100 border-2 border-red-300 rounded"></div>{" "}
-            Pagado (Vendido)
-          </div>
+      {sorteo.estado === "cancelado" && (
+        <div className="mt-6 rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm text-gray-700">
+          Este sorteo fue cancelado.
+        </div>
+      )}
+
+      {/* Contadores */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900">{puestos.length}</p>
+          <p className="text-xs text-gray-500">Total</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-green-600">{vendidos}</p>
+          <p className="text-xs text-gray-500">Vendidos</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-yellow-600">{pendientes}</p>
+          <p className="text-xs text-gray-500">Pendientes</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
+          <p className="text-2xl font-bold text-gray-400">{disponibles}</p>
+          <p className="text-xs text-gray-500">Disponibles</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
+        <span>
+          💰 Recaudado:{" "}
+          <strong className="text-gray-900">{formatoPrecio.format(recaudado)}</strong>
+        </span>
+        <span>
+          ⏳ Por confirmar:{" "}
+          <strong className="text-gray-900">{formatoPrecio.format(porConfirmar)}</strong>
+        </span>
+      </div>
+
+      {/* Datos de pago que ven los compradores */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4">
         <p className="mb-2 text-sm font-semibold text-gray-800">
           💳 Datos de pago que ven los compradores
         </p>
         <InfoPago sorteo={sorteo} compacto />
       </div>
 
-      {/* Modal de Gestión (Solo para el creador) */}
+      {/* Cuadrícula */}
+      <div className="mt-8">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-xl font-bold text-gray-900">Cuadrícula de puestos</h2>
+          <p className="text-xs text-gray-500">
+            Toca un puesto amarillo o rojo para gestionar el pago
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {puestos.map((puesto) => {
+            const ganador = esGanador(puesto);
+            const base =
+              "h-11 w-11 rounded-lg border text-sm font-medium transition";
+
+            const clase = ganador
+              ? `${base} z-10 scale-110 border-amber-400 bg-amber-400 font-bold text-amber-900 shadow ring-2 ring-amber-300`
+              : puesto.estado === "disponible"
+                ? `${base} border-green-300 bg-green-100 text-green-800`
+                : puesto.estado === "pendiente"
+                  ? `${base} cursor-pointer border-yellow-400 bg-yellow-100 text-yellow-800 animate-pulse hover:bg-yellow-200`
+                  : `${base} cursor-pointer border-red-300 bg-red-500 text-white hover:bg-red-600`;
+
+            return (
+              <button
+                key={puesto.id}
+                onClick={() =>
+                  puesto.estado === "disponible"
+                    ? undefined
+                    : abrirModalGestion(puesto)
+                }
+                disabled={puesto.estado === "disponible"}
+                className={clase}
+                title={
+                  ganador
+                    ? `⭐ Puesto ganador · ${puesto.estado}`
+                    : puesto.estado === "disponible"
+                      ? "Disponible"
+                      : puesto.estado === "pendiente"
+                        ? "Pendiente de pago · gestionar"
+                        : "Vendido · gestionar"
+                }
+              >
+                {ganador ? `⭐${puesto.numero}` : puesto.numero}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Leyenda */}
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <span className="h-4 w-4 rounded border border-green-300 bg-green-100" />
+            Disponible
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-4 w-4 rounded border border-yellow-400 bg-yellow-100" />
+            Pendiente (toca para verificar)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-4 w-4 rounded bg-red-500" />
+            Vendido
+          </span>
+          {sorteo.estado === "finalizado" && (
+            <span className="flex items-center gap-1">
+              <span className="h-4 w-4 rounded bg-amber-400" />
+              Ganador
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ═══ Modal de gestión de puesto ═══ */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={`Puesto #${selectedPuesto?.numero} - ${selectedPuesto?.estado?.toUpperCase()}`}
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Gestión de puesto"
       >
-        {selectedPuesto && (
+        {puestoDetalle && (
           <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
-              <p>
-                <span className="font-semibold">Nombre:</span>{" "}
-                {selectedPuesto.nombre_comprador || "No proporcionado"}
-              </p>
-              <p>
-                <span className="font-semibold">Teléfono:</span>{" "}
-                {selectedPuesto.telefono || "No proporcionado"}
-              </p>
-              <p>
-                <span className="font-semibold">Método de Pago:</span>{" "}
-                {selectedPuesto.metodo_pago}
-              </p>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
+                Puesto #{puestoDetalle.numero}
+              </h2>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                  puestoDetalle.estado === "vendido"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-yellow-100 text-yellow-700"
+                }`}
+              >
+                {puestoDetalle.estado}
+              </span>
             </div>
 
-            {selectedPuesto.estado === "pendiente" && (
-              <div className="flex gap-3 pt-2">
-                <Button
-                  onClick={handleMarcarPagado}
-                  loading={loadingAction}
-                  variant="primary"
-                >
-                  ✅ Confirmar Pagado
-                </Button>
-                <Button
-                  onClick={handleLiberar}
-                  loading={loadingAction}
-                  variant="danger"
-                >
-                  ❌ Liberar Puesto
-                </Button>
+            {/* Selección múltiple */}
+            {relacionados.length > 1 && (
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                <p className="text-sm font-semibold text-indigo-900">
+                  🔢 Selección múltiple · {relacionados.length} puestos
+                </p>
+                <p className="mt-1 font-mono text-sm text-indigo-700">
+                  {relacionados.map((p) => p.numero).join(", ")}
+                </p>
+                <p className="mt-1 text-xs text-indigo-600">
+                  Confirmar o liberar se aplica a los {relacionados.length} puestos de
+                  esta compra.
+                </p>
               </div>
             )}
 
-            {selectedPuesto.estado === "vendido" && (
-              <div className="pt-2">
+            {/* Datos del comprador */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm">
+                <span className="text-gray-500">Comprador:</span>{" "}
+                <strong className="text-gray-900">
+                  {puestoDetalle.nombre_comprador || "—"}
+                </strong>
+              </p>
+              <p className="mt-1 text-sm">
+                <span className="text-gray-500">Teléfono:</span>{" "}
+                <strong className="text-gray-900">
+                  {puestoDetalle.telefono || "—"}
+                </strong>
+              </p>
+              <p className="mt-1 text-sm">
+                <span className="text-gray-500">Método de pago:</span>{" "}
+                <strong className="text-gray-900 capitalize">
+                  {puestoDetalle.metodo_pago || "—"}
+                </strong>
+              </p>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            {/* Acciones */}
+            {sorteo.estado === "activo" ? (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {puestoDetalle.estado === "pendiente" && (
+                  <Button
+                    onClick={confirmarPago}
+                    loading={actualizando}
+                    className="!w-auto"
+                  >
+                    ✅ Confirmar Pagado
+                  </Button>
+                )}
                 <Button
-                  onClick={handleLiberar}
-                  loading={loadingAction}
                   variant="danger"
+                  onClick={liberarPuesto}
+                  loading={actualizando}
+                  className="!w-auto"
                 >
-                  ❌ Devolver / Liberar Puesto
+                  ❌{" "}
+                  {puestoDetalle.estado === "vendido"
+                    ? "Revertir venta"
+                    : "Liberar puesto"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="!w-auto"
+                  onClick={() => setModalOpen(false)}
+                >
+                  Cerrar
                 </Button>
               </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                El sorteo está {sorteo.estado}; los puestos ya no pueden modificarse.
+              </p>
             )}
           </div>
         )}
       </Modal>
 
-      {/* Modal para ingresar el ganador */}
+      {/* ═══ Modal de finalización ═══ */}
       <Modal
-        isOpen={isWinnerModalOpen}
-        onClose={() => setIsWinnerModalOpen(false)}
-        title="Finalizar Sorteo"
+        isOpen={modalFinalizarOpen}
+        onClose={() => setModalFinalizarOpen(false)}
+        title="Finalizar sorteo"
       >
-        <form onSubmit={handleFinalizarSorteo} className="space-y-4">
-          <p className="text-gray-600 text-sm">
-            Ingresa el número que salió premiado en el sorteo.
+        <form onSubmit={finalizarSorteo} className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">🏁 Finalizar sorteo</h2>
+          <p className="text-sm text-gray-600">
+            Indica el número del puesto ganador (entre 1 y {sorteo.total_puestos}).
+            Esta acción no se puede deshacer.
           </p>
+
           <Input
-            id="winner"
-            label={`Número Ganador (1 al ${sorteo.total_puestos})`}
+            label={`Número ganador (1 - ${sorteo.total_puestos})`}
             type="number"
-            min="1"
+            min={1}
             max={sorteo.total_puestos}
-            placeholder="Ej: 45"
-            value={winnerNumber}
-            onChange={(e) => setWinnerNumber(e.target.value)}
-            required
+            value={numeroGanador}
+            onChange={(e) => setNumeroGanador(e.target.value)}
+            placeholder="Ej. 42"
           />
-          <div className="flex gap-3 pt-2">
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button type="submit" loading={finalizando} className="!w-auto">
+              ✅ Finalizar y declarar ganador
+            </Button>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setIsWinnerModalOpen(false)}
-              className="w-auto"
+              className="!w-auto"
+              onClick={() => setModalFinalizarOpen(false)}
             >
               Cancelar
             </Button>
-            <Button type="submit" loading={loadingFinalize}>
-              Confirmar Ganador
-            </Button>
           </div>
+
+          <p className="text-xs text-gray-500">
+            Al finalizar, los compradores verán el resultado al abrir el enlace del
+            sorteo.
+          </p>
         </form>
       </Modal>
     </div>
